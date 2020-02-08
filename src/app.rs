@@ -1,4 +1,4 @@
-use yew::{html, Component, ComponentLink, Html, Renderable, ShouldRender};
+use yew::{html, Component, ComponentLink, Html, ShouldRender};
 use yew::services::console::ConsoleService;
 use yew::services::fetch::{FetchService, FetchTask, Response, Request};
 use yew::format::Nothing;
@@ -13,13 +13,27 @@ pub struct App {
     console: ConsoleService,
     link: ComponentLink<Self>,
     task: Option<FetchTask>,
+    backend: String,
+}
+
+pub enum Mode {
+    On,
+    Off,
+}
+
+impl ToString for Mode {
+    fn to_string(&self) -> String {
+        match self {
+            Mode::On => "on",
+            Mode::Off => "off",
+        }.to_string()
+    }
 }
 
 pub enum Msg {
-    DoIt,
-    Fetch,
+    Light(Mode),
     Update(String),
-    Error,
+    Error(String),
 }
 
 impl Component for App {
@@ -34,27 +48,19 @@ impl Component for App {
         let fetcher = FetchService::new();
         let console = ConsoleService::new();
         let task = None;
-        App { value, fetch_value, fetcher, console, link, task }
+        let backend = "http://192.168.0.102:3030".to_string();
+        App { value, fetch_value, fetcher, console, link, task, backend }
     }
 
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
-            Msg::DoIt => {
-                // Update your model on events
-                self.value = self.value + 1;
-                self.console.log(
-                    &format!("Button pressed for {:?} time.", self.value));
-                println!("Button pressed for {:?} time.", self.value);
-                true
-            }
-            Msg::Fetch => {
-                let request = Request::get("http://localhost:3030/hello/warp")
+            Msg::Light(mode) => {
+                let url = format!("{}/light/{}", self.backend, mode.to_string());
+                let request = Request::post(url)
                     .body(Nothing)
                     .expect("Failed to build request");
-                // let request = Request::new("Hello".to_string());
 
-                // (|response: Response<Result<String, failure::Error>>| {
-                let callback = self.link.send_back(
+                let callback = self.link.callback(
                     |response: Response<Result<String, Error>>| {
                         let mut console = ConsoleService::new();
                         console.log("Hello fetching!!");
@@ -66,12 +72,13 @@ impl Component for App {
                                 } else {
                                     console.log(&format!(
                                         "Error in status: {:?}", meta.status));
-                                    Msg::Error
+                                    Msg::Error(meta.status.to_string())
                                 }
                             },
-                            Err(_) => {
+                            Err(e) => {
                                 console.log("Error in response!!");
-                                Msg::Error
+                                Msg::Error(format!(
+                                    "Error in response: {:?}", e.backtrace()))
                             },
                         }
                     }
@@ -84,18 +91,15 @@ impl Component for App {
                 self.fetch_value = format!("Fetched string: {}", resp);
                 true
             }
-            Msg::Error => {
-                self.fetch_value = "Error fetching from backend.".to_string();
+            Msg::Error(resp) => {
+                self.fetch_value = format!("Error fetching from backend: {}", resp);
                 true
             }
         }
     }
-}
-
-
-impl Renderable<App> for App {
-    fn view(&self) -> Html<App> {
-        // let onclick = self.link.callback(|_| Msg::DoIt);
+    fn view(&self) -> Html {
+        let turn_on = self.link.callback(|_| Msg::Light(Mode::On));
+        let turn_off = self.link.callback(|_| Msg::Light(Mode::Off));
         html! {
             <div class="LightsWrapper">
                 <section class="lights">
@@ -104,10 +108,10 @@ impl Renderable<App> for App {
                     </header>
                 </section>
                 <section class="button1">
-                    <button onclick=|_| Msg::DoIt >{ "Turn me on!" }</button>
+                    <button onclick=turn_on >{ "Turn me on!" }</button>
                 </section>
                 <section class="button2">
-                    <button onclick=|_| Msg::Fetch >{ "Fetch from server." }</button>
+                    <button onclick=turn_off >{ "Turn me off!" }</button>
                 </section>
                 <section class="output">
                     <p>{ self.view_output() }</p>
@@ -117,9 +121,10 @@ impl Renderable<App> for App {
     }
 }
 
+
 impl App {
 
-    fn view_output(&self) -> Html<App> {
+    fn view_output(&self) -> Html {
         let mut output = "Count: ".to_string();
         output.push_str(&self.value.to_string());
         let fetch_output = &self.fetch_value;
