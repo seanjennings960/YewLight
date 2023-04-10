@@ -7,12 +7,11 @@ use yew::format::Nothing;
 use failure::Error;
 
 pub struct App {
-    value: i32,
-    fetch_value: String,
     fetcher: FetchService,
     console: ConsoleService,
     link: ComponentLink<Self>,
     task: Option<FetchTask>,
+    fetch_value: String,
     backend: String,
 }
 
@@ -43,13 +42,12 @@ impl Component for App {
     type Properties = ();
 
     fn create(_: Self::Properties, link: ComponentLink<Self>) -> Self {
-        let value = 0;
         let fetch_value = "".to_string();
         let fetcher = FetchService::new();
         let console = ConsoleService::new();
         let task = None;
         let backend = "http://192.168.0.102:3030".to_string();
-        App { value, fetch_value, fetcher, console, link, task, backend }
+        App { fetch_value, fetcher, console, link, task, backend }
     }
 
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
@@ -107,14 +105,14 @@ impl Component for App {
                         <h1>{ "Lights!" }</h1>
                     </header>
                 </section>
-                <section class="button1">
-                    <button onclick=turn_on >{ "Turn me on!" }</button>
+                <section >
+                    <button class="on" onclick=turn_on >{ "Turn me on!" }</button>
                 </section>
-                <section class="button2">
-                    <button onclick=turn_off >{ "Turn me off!" }</button>
+                <section >
+                    <button class="off" onclick=turn_off >{ "Turn me off!" }</button>
                 </section>
-                <section class="output">
-                    <p>{ self.view_output() }</p>
+                <section class="error_display">
+                    <p>{ self.view_error() }</p>
                 </section>
             </div>
         }
@@ -124,15 +122,12 @@ impl Component for App {
 
 impl App {
 
-    fn view_output(&self) -> Html {
-        let mut output = "Count: ".to_string();
-        output.push_str(&self.value.to_string());
+    fn view_error(&self) -> Html {
         let fetch_output = &self.fetch_value;
 
         html! {
             <div>
-                <p> {output} </p>
-                <p> {fetch_output} </p>
+                {fetch_output}
             </div>
         }
     }
